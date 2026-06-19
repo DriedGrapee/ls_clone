@@ -136,6 +136,10 @@ void print_long(const char *dir, const char *name,
   // then add whitespace to the front of the size value
 
 int main (int argc, char *argv[]) {
+
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
     int opt;
     int slk_max_len = 0;
     int usr_max_len = 0;
@@ -195,6 +199,13 @@ int main (int argc, char *argv[]) {
     }
 
     closedir(dir); // if this was not done the program would leak memory
+
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double time_taken = (end.tv_sec - start.tv_sec) + 
+                        (end.tv_nsec - start.tv_nsec) / 1e9;
+
+    printf("Total time elapsed: %.6f seconds\n", time_taken);
 
     return 0;
 }
