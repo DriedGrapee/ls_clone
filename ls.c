@@ -161,7 +161,7 @@ int main (int argc, char *argv[]) {
     }
 
     const char *path = (optind < argc) ? argv[optind] : ".";  // ternary operator so as to 
-                                                    //not assign null to path if no input is given
+                                                              //not assign null to path if no input is given
 
     // error handling on opening input directory
     DIR *dir = opendir(path);
@@ -171,20 +171,25 @@ int main (int argc, char *argv[]) {
     }
 
     struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        get_max_length(path, entry->d_name,
-                       &slk_max_len,
-                       &usr_max_len,
-                       &grp_max_len,
-                       &mem_max_len);
-    }
 
-    
-    closedir(dir); 
-    dir = opendir(path);
-    if (dir == NULL) {
-        perror("opendir");
-        return 1;
+    if (do_print_long) {
+        while ((entry = readdir(dir)) != NULL) {
+            if (!show_all && entry->d_name[0] == '.') {
+                continue;
+            } 
+            get_max_length(path, entry->d_name,
+                        &slk_max_len,
+                        &usr_max_len,
+                        &grp_max_len,
+                        &mem_max_len);
+        }
+
+        closedir(dir); 
+        dir = opendir(path);
+        if (dir == NULL) {
+            perror("opendir");
+            return 1;
+        }
     }
 
     while ((entry = readdir(dir)) != NULL) {
@@ -208,4 +213,10 @@ int main (int argc, char *argv[]) {
     printf("Total time elapsed: %.6f seconds\n", time_taken);
 
     return 0;
-}
+} // next plan of attack: get the sorting down, reduce from 2 loops to 1, cache sys calls
+  // for example, I will spend most of the time checking the same user over and over so 
+  // save which user corresponds to which uid  
+  // also change where it checks for the -a flag, because there is no need to do stat calls
+  // if the user does not want . files printed
+
+  //try and pair entry to an index key?
