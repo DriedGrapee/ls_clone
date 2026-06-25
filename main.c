@@ -11,6 +11,7 @@
 
 int show_all = 0;
 int do_long = 0;
+int print_reverse = 0;
 
 int compare_char_ptr(const void* s1, const void* s2) {
     return strcoll(*(const char **)s1, *(const char **)s2);
@@ -20,6 +21,7 @@ static struct option long_options[] =
 {
     {"long", no_argument, NULL, 'l'},
     {"all", no_argument, NULL, 'a'},
+    {"reverse", no_argument, NULL, 'r'},
     {0, 0, 0, 0}
 };
 
@@ -33,7 +35,7 @@ int main (int argc, char *argv[]) {
     int this_option_optind = optind ? optind : 1;
     int option_index = 0;
 
-    while((opt = getopt_long(argc, argv, "al", long_options, &option_index)) != -1) {
+    while((opt = getopt_long(argc, argv, "alr", long_options, &option_index)) != -1) {
         switch (opt) {
             case '0':
             case '1':
@@ -49,8 +51,11 @@ int main (int argc, char *argv[]) {
             case 'l':
                 do_long = 1;
                 continue;
+            case 'r':
+                print_reverse = 1;
+                continue;
             default:
-                fprintf(stderr, "usage: %s [-al] [path]\n", argv[0]);
+                fprintf(stderr, "usage: %s [-alr] [path]\n", argv[0]);
                 return 1;
         }
     }
@@ -107,15 +112,26 @@ int main (int argc, char *argv[]) {
                             &mem_max_len);
         }
     }
-    if (do_long) {
+    if (do_long && !print_reverse) {
         sort_entries((entry_info **)entries, number_of_entries);
         for (int i = 0; i < number_of_entries; ++i) {
             print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
             free(entries[i]);
         }
-    } else {
+    } else if (!do_long && !print_reverse){
         qsort(entries, number_of_entries, sizeof(entry), compare_char_ptr);
         for (int i = 0; i < number_of_entries; ++i) {
+            printf("%s\n", (char *)entries[i]);
+        }
+    } else if (do_long && print_reverse) {
+        sort_entries((entry_info **)entries, number_of_entries);
+        for (int i = number_of_entries - 1; i >= 0; --i) {
+            print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
+            free(entries[i]);
+        }
+    } else if (!do_long && print_reverse){
+        qsort(entries, number_of_entries, sizeof(entry), compare_char_ptr);
+        for (int i = number_of_entries - 1; i >= 0; --i) {
             printf("%s\n", (char *)entries[i]);
         }
     }
