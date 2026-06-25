@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <getopt.h>
 
 int show_all = 0;
 int do_long = 0;
@@ -15,15 +16,33 @@ int compare_char_ptr(const void* s1, const void* s2) {
     return strcoll(*(const char **)s1, *(const char **)s2);
 }
 
+static struct option long_options[] =
+{
+    {"long", no_argument, NULL, 'l'},
+    {"all", no_argument, NULL, 'a'},
+    {0, 0, 0, 0}
+};
+
 int main (int argc, char *argv[]) {
 
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     int opt;
+    int digit_optind = 0;
+    int this_option_optind = optind ? optind : 1;
+    int option_index = 0;
 
-    while((opt = getopt(argc, argv, "al")) != -1) {
+    while((opt = getopt_long(argc, argv, "al", long_options, &option_index)) != -1) {
         switch (opt) {
+            case '0':
+            case '1':
+            case '2':
+                if (digit_optind != 0 && digit_optind != this_option_optind)
+                    printf("digits occur in two different argv-elements.\n");
+                digit_optind = this_option_optind;
+                printf("option %c\n", opt);
+                break;
             case 'a':
                 show_all = 1;
                 continue;
