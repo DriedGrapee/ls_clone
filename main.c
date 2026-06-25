@@ -6,14 +6,16 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <time.h>
-#include <locale.h>
+#include <string.h>
 
 int show_all = 0;
 int do_long = 0;
 
-int main (int argc, char *argv[]) {
+int compare_char_ptr(const void* s1, const void* s2) {
+    return strcoll(*(const char **)s1, *(const char **)s2);
+}
 
-    setlocale(LC_COLLATE, "");   // honor the user's locale for strcoll, like real ls
+int main (int argc, char *argv[]) {
 
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -45,61 +47,61 @@ int main (int argc, char *argv[]) {
 
     struct dirent *entry;
 
-    if (do_long) {
-        int slk_max_len = 0;
-        int usr_max_len = 0;
-        int grp_max_len = 0;
-        int mem_max_len = 0;
-        int number_of_entries = 0;
-        int max_entries = 8;
-        entry_info **entries = malloc(max_entries * sizeof(*entries));
+    int slk_max_len = 0;
+    int usr_max_len = 0;
+    int grp_max_len = 0;
+    int mem_max_len = 0;
+    int number_of_entries = 0;
+    int max_entries = 8;
 
-        if (entries == NULL) return 1;
-        while ((entry = readdir(dir)) != NULL) {
-            if (!show_all && entry->d_name[0] == '.') {
-                continue;
+    void **entries = malloc(max_entries * sizeof(*entries));
+    if (entries == NULL) return 1;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (!show_all && entry->d_name[0] == '.') {
+            continue;
+        }
+
+        if (number_of_entries == max_entries) {
+            max_entries += 4;
+            void **temp = realloc(entries, max_entries * sizeof(*entries));
+
+            if (temp == NULL) {
+                fprintf(stderr, "Reallocation failed! Old memory is still intact.\n");
+                free(entries);
+                return 1;
             }
-
-            if (number_of_entries == max_entries) {
-                max_entries += 4;
-                entry_info **temp = realloc(entries, max_entries * sizeof(*entries));
-
-                if (temp == NULL) {
-                    fprintf(stderr, "Reallocation failed! Old memory is still intact.\n");
-                    free(entries);
-                    return 1;
-                }
-                entries = temp;
-            }
-
-            if (add_entry(entries, path, entry->d_name, &number_of_entries) != 0) {
+            entries = temp;
+        }
+        if (!do_long) {
+            entries[number_of_entries] = entry->d_name;
+            number_of_entries++;
+        } else {
+            if (add_entry((entry_info **)entries, path, entry->d_name, &number_of_entries) != 0) {
                 // handle error
                 printf("Got an error from add_entry");
             }
-            get_max_length(entries, &number_of_entries,
+            get_max_length((entry_info **)entries, &number_of_entries,
                             &slk_max_len,
                             &usr_max_len,
                             &grp_max_len,
                             &mem_max_len);
-
         }
-        // sort entries alphabetically by name (locale-aware, via the entry module)
-        sort_entries(entries, number_of_entries);   // int -> size_t is a safe widening
-
+    }
+    if (do_long) {
+        sort_entries((entry_info **)entries, number_of_entries);
         for (int i = 0; i < number_of_entries; ++i) {
             print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
             free(entries[i]);
         }
-        free(entries);
     } else {
-        while ((entry = readdir(dir)) != NULL) {
-            if (!show_all && entry->d_name[0] == '.') {
-                continue;
-            }
-            printf("%s\n", entry->d_name); // the -> replaces (*entry).d_name
+        qsort(entries, number_of_entries, sizeof(entry), compare_char_ptr);
+        for (int i = 0; i < number_of_entries; ++i) {
+            printf("%s\n", (char *)entries[i]);
         }
     }
 
+    free(entries);
     closedir(dir); // if this was not done the program would leak memory
 
     clock_gettime(CLOCK_MONOTONIC, &end);
