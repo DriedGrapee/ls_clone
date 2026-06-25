@@ -9,6 +9,20 @@
 #include <grp.h>
 #include <time.h>
 
+/* qsort comparator: order two entry_info pointers by name (locale-aware).
+   qsort passes the *addresses* of array elements, and each element is an
+   `entry_info *`, so `a`/`b` are really `entry_info * const *` -- dereference
+   once to recover the struct pointer. */
+static int entry_name_cmp(const void *a, const void *b) {
+    const entry_info *ea = *(const entry_info *const *)a;
+    const entry_info *eb = *(const entry_info *const *)b;
+    return strcoll(ea->name, eb->name);
+}
+
+void sort_entries(entry_info **entries, size_t n) {
+    qsort(entries, n, sizeof *entries, entry_name_cmp);
+}
+
 int add_entry(entry_info *entries[], const char *dir, const char *name, int *number_of_entries) {
 
     // add overflow protection

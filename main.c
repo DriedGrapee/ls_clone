@@ -6,11 +6,14 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <time.h>
+#include <locale.h>
 
 int show_all = 0;
 int do_long = 0;
 
 int main (int argc, char *argv[]) {
+
+    setlocale(LC_COLLATE, "");   // honor the user's locale for strcoll, like real ls
 
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -80,6 +83,9 @@ int main (int argc, char *argv[]) {
                             &mem_max_len);
 
         }
+        // sort entries alphabetically by name (locale-aware, via the entry module)
+        sort_entries(entries, number_of_entries);   // int -> size_t is a safe widening
+
         for (int i = 0; i < number_of_entries; ++i) {
             print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
             free(entries[i]);
