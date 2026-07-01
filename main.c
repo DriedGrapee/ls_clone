@@ -1,21 +1,14 @@
-#include "entry.h"
-#include "print.h"
+#include "listing.h"
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
 #include <unistd.h>
 #include <time.h>
-#include <string.h>
 #include <getopt.h>
+#include <locale.h>
 
 int show_all = 0;
 int do_long = 0;
 int print_reverse = 0;
-
-int compare_char_ptr(const void* s1, const void* s2) {
-    return strcoll(*(const char **)s1, *(const char **)s2);
-}
 
 static struct option long_options[] =
 {
@@ -27,24 +20,16 @@ static struct option long_options[] =
 
 int main (int argc, char *argv[]) {
 
+    setlocale(LC_COLLATE, "");   // honor the user's locale for strcoll
+
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     int opt;
-    int digit_optind = 0;
-    int this_option_optind = optind ? optind : 1;
     int option_index = 0;
 
     while((opt = getopt_long(argc, argv, "alr", long_options, &option_index)) != -1) {
         switch (opt) {
-            case '0':
-            case '1':
-            case '2':
-                if (digit_optind != 0 && digit_optind != this_option_optind)
-                    printf("digits occur in two different argv-elements.\n");
-                digit_optind = this_option_optind;
-                printf("option %c\n", opt);
-                break;
             case 'a':
                 show_all = 1;
                 continue;
@@ -60,84 +45,16 @@ int main (int argc, char *argv[]) {
         }
     }
 
-    const char *path = (optind < argc) ? argv[optind] : ".";  // ternary operator so as to
-                                                              //not assign null to path if no input is given
+    const char *path = (optind < argc) ? argv[optind] : ".";  // default to cwd if no path given
 
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        perror("opendir");
+    listing list;
+    if (read_directory(path, show_all, do_long, &list) != 0) {
         return 1;
     }
 
-    struct dirent *entry;
-
-    int slk_max_len = 0;
-    int usr_max_len = 0;
-    int grp_max_len = 0;
-    int mem_max_len = 0;
-    int number_of_entries = 0;
-    int max_entries = 8;
-
-    void **entries = malloc(max_entries * sizeof(*entries));
-    if (entries == NULL) return 1;
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (!show_all && entry->d_name[0] == '.') {
-            continue;
-        }
-
-        if (number_of_entries == max_entries) {
-            max_entries += 4;
-            void **temp = realloc(entries, max_entries * sizeof(*entries));
-
-            if (temp == NULL) {
-                fprintf(stderr, "Reallocation failed! Old memory is still intact.\n");
-                free(entries);
-                return 1;
-            }
-            entries = temp;
-        }
-        if (!do_long) {
-            entries[number_of_entries] = entry->d_name;
-            number_of_entries++;
-        } else {
-            if (add_entry((entry_info **)entries, path, entry->d_name, &number_of_entries) != 0) {
-                // handle error
-                printf("Got an error from add_entry");
-            }
-            get_max_length((entry_info **)entries, &number_of_entries,
-                            &slk_max_len,
-                            &usr_max_len,
-                            &grp_max_len,
-                            &mem_max_len);
-        }
-    }
-    if (do_long && !print_reverse) {
-        sort_entries((entry_info **)entries, number_of_entries);
-        for (int i = 0; i < number_of_entries; ++i) {
-            print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
-            free(entries[i]);
-        }
-    } else if (!do_long && !print_reverse){
-        qsort(entries, number_of_entries, sizeof(entry), compare_char_ptr);
-        for (int i = 0; i < number_of_entries; ++i) {
-            printf("%s\n", (char *)entries[i]);
-        }
-    } else if (do_long && print_reverse) {
-        sort_entries((entry_info **)entries, number_of_entries);
-        for (int i = number_of_entries - 1; i >= 0; --i) {
-            print_long(entries[i], slk_max_len, usr_max_len, grp_max_len, mem_max_len);
-            free(entries[i]);
-        }
-    } else if (!do_long && print_reverse){
-        qsort(entries, number_of_entries, sizeof(entry), compare_char_ptr);
-        for (int i = number_of_entries - 1; i >= 0; --i) {
-            printf("%s\n", (char *)entries[i]);
-        }
-    }
-
-    free(entries);
-    closedir(dir); // if this was not done the program would leak memory
+    sort_listing(&list);
+    print_listing(&list, print_reverse);
+    free_listing(&list);
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     double time_taken = (end.tv_sec - start.tv_sec) +
@@ -146,6 +63,5 @@ int main (int argc, char *argv[]) {
     printf("Total time elapsed: %.6f seconds\n", time_taken);
 
     return 0;
-} // next plan of attack: get the sorting down, cache sys calls
-  // for example, I will spend most of the time checking the same user over and over so
-  // save which user corresponds to which uid
+} // next plan of attack: cache sys calls -- most time is spent re-checking the same
+  // user/group, so cache which name corresponds to which uid/gid

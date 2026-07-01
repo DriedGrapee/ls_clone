@@ -2,7 +2,6 @@
 #define ENTRY_H
 
 #include <limits.h>
-#include <stddef.h>
 
 #ifndef LOGIN_NAME_MAX
 #define LOGIN_NAME_MAX 256
@@ -36,11 +35,5 @@ void get_max_length(entry_info *entries[], int *number_of_entries,
                     int *usr_max_len,
                     int *grp_max_len,
                     int *mem_max_len);
-
-/*
- * Sort `entries` (an array of `n` entry_info pointers) in place, ordering by
- * file name using the current locale's collation (LC_COLLATE / strcoll).
- */
-void sort_entries(entry_info **entries, size_t n);
 
 #endif /* ENTRY_H */

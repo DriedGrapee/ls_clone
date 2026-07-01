@@ -15,7 +15,7 @@
 
 CC     := gcc
 TARGET := myls
-OBJS   := main.o entry.o mode.o print.o
+OBJS   := main.o entry.o mode.o print.o listing.o
 
 # Active configuration; override on the command line with BUILD=release.
 BUILD ?= debug
@@ -63,10 +63,11 @@ $(TARGET): $(OBJS)
 
 # Objects are compiled by make's built-in rule; these lines only declare the
 # header and configuration-stamp prerequisites that trigger a rebuild.
-main.o:  main.c entry.h print.h $(STAMP)
-entry.o: entry.c entry.h mode.h $(STAMP)
-mode.o:  mode.c mode.h $(STAMP)
-print.o: print.c print.h entry.h $(STAMP)
+main.o:    main.c listing.h $(STAMP)
+entry.o:   entry.c entry.h mode.h $(STAMP)
+mode.o:    mode.c mode.h $(STAMP)
+print.o:   print.c print.h entry.h $(STAMP)
+listing.o: listing.c listing.h entry.h print.h $(STAMP)
 
 # Creating the stamp for a new configuration removes artifacts left over from
 # the other one, forcing a clean rebuild with the correct flags.
